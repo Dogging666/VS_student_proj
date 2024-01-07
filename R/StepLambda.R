@@ -16,12 +16,15 @@ dat <- data.frame(times, t(obs)) %>% pivot_longer(cols = 2:(data_points_per_time
 plot(dat$times,dat$value)
 
 # fit model
-m <- gam(value~s(times, k=20),data=dat)
+m <- gam(value~s(times, k=40),data=dat, family = poisson(link = "log"))
 
 summary(m)
 plot(m, residuals=TRUE)
 
 gam.check(m)
+
+plot(m, residuals=TRUE)
+points(times,log(true_lambda) - mean(log(true_lambda)), cex=0.5, col="red")
 
 # plot against data
 m.pred <- predict.gam(m, newdata = data.frame(times))
