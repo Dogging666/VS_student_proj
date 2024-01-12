@@ -66,12 +66,14 @@ random_walk <- function(period, skip=1) {
 }
 
 times <- seq(1, PERIOD)
-true_lambda <- 
-  2 * generate_seasonalities(PERIOD) * (1+sqrt(abs(random_walk(PERIOD)))) + 2 * rnorm(PERIOD)
-plot(times, true_lambda)
+true_mean <- 
+  2 * generate_seasonalities(PERIOD) * (1+sqrt(abs(random_walk(PERIOD)))) + rnorm(PERIOD)
+true_mean <- pmax(1, true_mean)
+
+plot(times, true_mean)
 
 # generate draws
-observations <- (sapply(true_lambda, rpois, n = maxPointDensity) 
+observations <- (sapply(true_mean, rpois, n = maxPointDensity) 
                  %>% as_tibble(names_to = NULL))
 
 # reduces the number of observations for a certain period of time. Biases
@@ -140,7 +142,7 @@ plot(data$times,data$value)
 
 # fit model
 m <- gam(value~s(times, k=100), 
-         data, 
+         data,
          family = poisson(link = "log"), 
          method = 'REML')
 summary(m)
@@ -149,10 +151,10 @@ gam.check(m)
 
 
 plot(m, residuals=TRUE)
-points(times,log(true_lambda) - mean(log(true_lambda)), cex=0.5, col="red")
+points(times,log(true_mean) - mean(log(true_mean)), cex=0.5, col="red")
 # plot against data
 
 plot(data$times,data$value, pch=19, cex=0.25)
-points(times,true_lambda, pch=3, col="red")
+points(times,true_mean, pch=3, col="red")
 m.pred <- exp(predict.gam(m, newdata = data.frame(times)))
 points(times,m.pred, col = "blue")
