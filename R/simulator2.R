@@ -3,6 +3,7 @@ library(dplyr)
 
 source("R/seasonalities2.R")
 source("R/dataOperators.R")
+set.seed(42)
 
 PERIOD <- 731
 p <- new.env()
