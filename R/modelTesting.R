@@ -13,7 +13,7 @@ mDay <- gam(contacts~s(day, k=100),
          method = 'REML')
 summary(mDay)
 
-gam.check(mDay)
+gam.check(mDay, rep=500)
 
 plot(data$day,data$contacts, pch=19, cex=0.25)
 
@@ -24,7 +24,7 @@ pred <- exp(predict.gam(mDay, newdata = data.frame(day=days)))
 points(days, pred, col="blue")
 
 #Smooth of day + lockdown
-mLockdown <- gam(contacts~s(day, k=100) + lockdown, 
+mLockdown <- gam(contacts~s(day, k=100, by=lockdown) + lockdown, 
          data,
          family = poisson(link = "log"), 
          method = 'REML')

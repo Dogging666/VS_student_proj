@@ -13,10 +13,10 @@ temperature <- sapply(days, generateTemperature)
 p$temperatureAdjustment <- temperature / mean(temperature)
 
 holiday <- as.integer(sapply(days, isSchoolHoliday))
-p$holidayAdjustment  <- holiday * 0.3 + 1
+p$holidayAdjustment  <- 1 + holiday * 0.3
 
 lockdown <- as.integer(sapply(days, underLockdown))
-p$lockdownAdjustment <- lockdown * 0.7 + 0.3
+p$lockdownAdjustment <- 1 - lockdown * 0.7
 
 p$seasonalities <- p$temperatureAdjustment * p$holidayAdjustment * p$lockdownAdjustment
 
