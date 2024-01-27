@@ -94,3 +94,7 @@ points(days, pred, col="blue")
 meanSquareError <- function(pred, true_mean) {
   return sum((pred-true_mean)^2) / length(true_mean)
 }
+
+# rootMeanSquareError
+# deviance = logliklhood * -2
+# %devianceExpained deviance of your model vs deviance of my model

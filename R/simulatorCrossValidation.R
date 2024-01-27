@@ -2,7 +2,7 @@ library(tidyverse)
 library(dplyr)
 
 source("R/seasonalities2.R")
-source("R/dataOperators.R")
+source("R/dataOperators2.R")
 set.seed(42)
 
 PERIOD <- 731
@@ -11,12 +11,12 @@ p <- new.env()
 days <- 1:PERIOD
 p$maxPointDensity <- 10
 
-p$data <- generateSeasonalitiesData(days)
+p$seasonalityData <- generateSeasonalitiesData(days)
 p$holidayAdjustment <- (
-  p$data$publicHoliday + p$data$schoolHoliday
+  p$seasonalityData$publicHoliday + p$seasonalityData$schoolHoliday
 ) * 0.35 + 1
 
-p$weekdates <- data.frame(values = p$data$weekdate)
+p$weekdates <- data.frame(values = p$seasonalityData$weekdate)
 p$weekdates[p$weekdates == "Monday"]    <- rnorm(1, mean=1.0, sd=0.05)
 p$weekdates[p$weekdates == "Tuesday"]   <- rnorm(1, mean=1.0, sd=0.05)
 p$weekdates[p$weekdates == "Wednesday"] <- rnorm(1, mean=1.0, sd=0.05)
@@ -26,9 +26,9 @@ p$weekdates[p$weekdates == "Saturday"]  <- rnorm(1, mean=1.8, sd=0.25)
 p$weekdates[p$weekdates == "Sunday"]    <- rnorm(1, mean=0.8, sd=0.10)
 p$weekdateAdjustment <- pmax(as.numeric(p$weekdates$values), 0.5)
 
-p$monthAdjustment <- 0.990 + 0.001 * (p$data$month - 6) ^ 2
+p$monthAdjustment <- 0.990 + 0.001 * (p$seasonalityData$month - 6) ^ 2
 
-p$lockdown <- as.integer(p$data$lockdown)
+p$lockdown <- as.integer(p$seasonalityData$lockdown)
 p$boundary_indices <- which(diff(p$lockdown) == -1)
 p$lockdownAdjustment <- 1 - 0.8 * p$lockdown
 
@@ -38,11 +38,11 @@ p$sequences_to_add <- 0:9
 modified_vectors <- lapply(p$sequences_to_add, function(seq) p$boundary_indices + seq)
 
 # Concatenate all modified vectors into a single vector
-p$result_vector <- sort(intersect(do.call(c, modified_vectors), which(!(p$data$lockdown))))
+p$result_vector <- sort(intersect(do.call(c, modified_vectors), which(!(p$seasonalityData$lockdown))))
 p$lockdownAdjustment[p$result_vector] <- rnorm(length(p$result_vector), mean=1.5, sd=0.1)
 
-p$temperatureAdjustment <- ((p$data$temperature - mean(p$data$temperature))
-                            / sd(p$data$temperature))
+p$temperatureAdjustment <- ((p$seasonalityData$temperature - mean(p$seasonalityData$temperature))
+                            / sd(p$seasonalityData$temperature))
 p$temperatureAdjustment <- 0.5 * p$temperatureAdjustment + 1
 
 p$seasonalitiesAdjustment <- (
@@ -56,45 +56,45 @@ p$seasonalitiesAdjustment <- (
 p$trueMean <- pmax(2 * p$seasonalitiesAdjustment + rnorm(PERIOD, mean=4), 1)
 
 # generate draws
-p$observations <- (sapply(p$trueMean, rpois, n = p$maxPointDensity) 
+p$trueValues <- (sapply(p$trueMean, rpois, n = p$maxPointDensity) 
                  %>% as_tibble(names_to = NULL))
-
-# biased removal criterion that removes 20% of values above 10
-p$removalCriteria1 <- function(x) {
-  return(runif(1) < 0.2 & x > 10)
-}
 
 # biased modifier that caps maximum rate to 20
 p$operator1 <- function(x) {
-  pmin(x, 20)
+  min(x, 20)
+}
+
+# biased removal criterion that removes 50% of values above 10
+p$operator2 <- function(x) {
+  if (is.na(x) | (x > 10 & runif(1) < 0.5)) return(NA)
+  return(x)
 }
 
 # apply removals to original observations to create new patchy observations
-p$patchy_observations <- (p$observations 
-                        %>% makePatches(p$removalCriteria1)
-                        %>% operate(p$operator1)
-                        %>% limitObservations(5, 0, 40)
-                        %>% limitObservations(8, 40, 400)
+p$observations <- (p$trueValues 
+                        %>% limitObservations(3, 1, 200)
+                        %>% operate_on_values(p$operator1)
+                        %>% operate_on_values(p$operator2)
 )
 
 p$unObservedData <- (data.frame(
-  p$data, t(p$observations)
+  p$seasonalityData, t(p$trueValues)
 )
   %>% pivot_longer(cols = 9:(8+p$maxPointDensity), names_to = NULL)
 )
 names(p$unObservedData)[9] <- "contacts"
 
-# put together p$data
+# put together p$seasonalityData
 p$observedData <- (data.frame(
-  p$data, t(p$patchy_observations)
+  p$seasonalityData, t(p$observations)
 ) 
   %>% pivot_longer(cols = 9:(8+p$maxPointDensity), names_to = NULL)
 )
 names(p$observedData)[9] <- "contacts"
 p$observedData <- p$observedData[complete.cases(p$observedData["contacts"]), ]
 
-getSeasonalities <- function() {
-  return(p$data)
+getSeasonality <- function() {
+  return(p$seasonalityData)
 }
 
 getObservedData <- function() {
