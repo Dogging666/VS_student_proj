@@ -1,5 +1,6 @@
 library(mgcv)
 library(tidyverse)
+library(ggplot2)
 
 source("R/simulatorCrossValidation.R")
 observationData <- getObservedData()

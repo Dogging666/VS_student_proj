@@ -1,5 +1,4 @@
 YEAR_LENGTH <- 365.2425
-PERIOD <- 731
 
 isPublicHoliday <- function(day) {
   # Public holidays for 2020/21
@@ -21,6 +20,8 @@ isPublicHoliday <- function(day) {
     as.Date("2020-12-28"),  # Monday after Boxing Day
     
     # 2021
+    as.Date("2021-01-01"),  # New Year's Day
+    as.Date("2021-01-26"),  # Australia Day
     as.Date("2021-03-08"),  # Labor Day
     as.Date("2021-04-02"),  # Good Friday
     as.Date("2021-04-03"),  # Saturday before Easter Sunday
@@ -33,10 +34,28 @@ isPublicHoliday <- function(day) {
     as.Date("2021-12-25"),  # Christmas Day
     as.Date("2021-12-26"),  # Boxing Day
     as.Date("2021-12-27"),  # Monday after Christmas Day
-    as.Date("2021-12-28")   # Tuesday after Boxing Day
+    as.Date("2021-12-28"),   # Tuesday after Boxing Day
+    
+    # 2022
+    as.Date("2022-01-01"),  # New Year's Day
+    as.Date("2022-01-03"),  # Monday after New Year's Day
+    as.Date("2022-01-26"),  # Australia Day
+    as.Date("2022-03-14"),  # Labor Day
+    as.Date("2022-04-15"),  # Good Friday
+    as.Date("2022-04-16"),  # Saturday before Easter Sunday
+    as.Date("2022-04-17"),  # Easter Sunday
+    as.Date("2022-04-18"),  # Easter Monday
+    as.Date("2022-04-25"),  # ANZAC Day
+    as.Date("2022-06-13"),  # Queen's Birthday
+    as.Date("2022-09-22"),  # National Day of Mourning
+    as.Date("2022-09-23"),  # Friday before AFL Grand Final
+    as.Date("2022-11-01"),  # Melbourne Cup
+    as.Date("2022-12-25"),  # Christmas Day
+    as.Date("2022-12-26"),  # Boxing Day
+    as.Date("2022-12-27")   # Tuesday after Christmas Day
   )
   
-  date <- as.Date("2020-01-01") + day %% PERIOD - 1
+  date <- as.Date("2020-01-01") + day - 1
   return (date %in% publicHolidays)
 }
 
@@ -52,9 +71,14 @@ isInSchoolTerm <- function(day) {
     seq(as.Date("2021-01-27"), as.Date("2021-03-31"), by = "days"),
     seq(as.Date("2021-04-19"), as.Date("2021-06-25"), by = "days"),
     seq(as.Date("2021-07-12"), as.Date("2021-09-17"), by = "days"),
-    seq(as.Date("2021-10-04"), as.Date("2021-12-17"), by = "days")
+    seq(as.Date("2021-10-04"), as.Date("2021-12-17"), by = "days"),
+    # 2022
+    seq(as.Date("2022-01-31"), as.Date("2022-04-08"), by = "days"),
+    seq(as.Date("2022-04-26"), as.Date("2022-07-01"), by = "days"),
+    seq(as.Date("2022-07-18"), as.Date("2022-09-23"), by = "days"),
+    seq(as.Date("2022-10-10"), as.Date("2022-12-16"), by = "days")
   )
-  date <- as.Date("2020-01-01") + day %% PERIOD - 1
+  date <- as.Date("2020-01-01") + day - 1
   return (date %in% schoolTermDates)
 }
 
@@ -78,7 +102,7 @@ underLockdown <- function(day) {
     seq(as.Date("2021-08-05"), as.Date("2021-10-21"), by = "days")
   )
   
-  date <- as.Date("2020-01-01") + day %% PERIOD - 1
+  date <- as.Date("2020-01-01") + day - 1
   return(date %in% lockdownDates)
 }
 

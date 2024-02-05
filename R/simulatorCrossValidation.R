@@ -5,45 +5,47 @@ source("R/seasonalities2.R")
 source("R/dataOperators2.R")
 set.seed(42)
 
-PERIOD <- 731
+PERIOD <- 1066
 p <- new.env()
 
 days <- 1:PERIOD
 p$maxPointDensity <- 10
 
 p$seasonalityData <- generateSeasonalitiesData(days)
+
 p$holidayAdjustment <- (
-  p$seasonalityData$publicHoliday + p$seasonalityData$schoolHoliday
-) * 0.35 + 1
+  (1 + 0.15 * p$seasonalityData$publicHoliday) *
+  (1 + 0.15 * p$seasonalityData$schoolHoliday)
+)
 
 p$weekdates <- data.frame(values = p$seasonalityData$weekdate)
-p$weekdates[p$weekdates == "Monday"]    <- rnorm(1, mean=1.0, sd=0.05)
-p$weekdates[p$weekdates == "Tuesday"]   <- rnorm(1, mean=1.0, sd=0.05)
-p$weekdates[p$weekdates == "Wednesday"] <- rnorm(1, mean=1.0, sd=0.05)
-p$weekdates[p$weekdates == "Thursday"]  <- rnorm(1, mean=1.0, sd=0.05)
-p$weekdates[p$weekdates == "Friday"]    <- rnorm(1, mean=1.2, sd=0.20)
-p$weekdates[p$weekdates == "Saturday"]  <- rnorm(1, mean=1.8, sd=0.25)
-p$weekdates[p$weekdates == "Sunday"]    <- rnorm(1, mean=0.8, sd=0.10)
-p$weekdateAdjustment <- pmax(as.numeric(p$weekdates$values), 0.5)
+p$weekdates[p$weekdates == "Monday"]    <- 0.90
+p$weekdates[p$weekdates == "Tuesday"]   <- 0.95
+p$weekdates[p$weekdates == "Wednesday"] <- 0.95
+p$weekdates[p$weekdates == "Thursday"]  <- 0.95
+p$weekdates[p$weekdates == "Friday"]    <- 1.10
+p$weekdates[p$weekdates == "Saturday"]  <- 1.15
+p$weekdates[p$weekdates == "Sunday"]    <- 1.10
+p$weekdateAdjustment <- as.numeric(p$weekdates$values)
 
-p$monthAdjustment <- 0.990 + 0.001 * (p$seasonalityData$month - 6) ^ 2
+p$monthAdjustment <- round(0.988 + 0.002 * p$seasonalityData$month, 2)
 
 p$lockdown <- as.integer(p$seasonalityData$lockdown)
 p$boundary_indices <- which(diff(p$lockdown) == -1)
-p$lockdownAdjustment <- 1 - 0.8 * p$lockdown
+p$lockdownAdjustment <- 1 - 0.7 * p$lockdown
 
-p$sequences_to_add <- 0:9
+p$sequences_to_add <- 0:6
 
 # Modify the original vector by adding consecutive sequences
 modified_vectors <- lapply(p$sequences_to_add, function(seq) p$boundary_indices + seq)
 
 # Concatenate all modified vectors into a single vector
 p$result_vector <- sort(intersect(do.call(c, modified_vectors), which(!(p$seasonalityData$lockdown))))
-p$lockdownAdjustment[p$result_vector] <- rnorm(length(p$result_vector), mean=1.5, sd=0.1)
+p$lockdownAdjustment[p$result_vector] <- 1.2
 
-p$temperatureAdjustment <- ((p$seasonalityData$temperature - mean(p$seasonalityData$temperature))
-                            / sd(p$seasonalityData$temperature))
-p$temperatureAdjustment <- 0.5 * p$temperatureAdjustment + 1
+p$temperatureAdjustment <- ((p$seasonalityData$temperature - min(p$seasonalityData$temperature))
+                            / (max(p$seasonalityData$temperature) - min(p$seasonalityData$temperature)))
+p$temperatureAdjustment <- 0.9 + 0.2 * p$temperatureAdjustment
 
 p$seasonalitiesAdjustment <- (
   p$holidayAdjustment * 
@@ -53,28 +55,31 @@ p$seasonalitiesAdjustment <- (
   p$temperatureAdjustment
 )
 
-p$trueMean <- pmax(2 * p$seasonalitiesAdjustment + rnorm(PERIOD, mean=4), 1)
+p$trueMean <- p$seasonalitiesAdjustment * runif(PERIOD, min=10.0, max=12.0)
 
 # generate draws
 p$trueValues <- (sapply(p$trueMean, rpois, n = p$maxPointDensity) 
                  %>% as_tibble(names_to = NULL))
 
-# biased modifier that caps maximum rate to 20
-p$operator1 <- function(x) {
-  min(x, 20)
-}
-
-# biased removal criterion that removes 50% of values above 10
-p$operator2 <- function(x) {
-  if (is.na(x) | (x > 10 & runif(1) < 0.5)) return(NA)
+# biased removal criterion that reduces 50% of values above 20
+p$reducer <- function(x) {
+  if (!is.na(x) & x > 20 & runif(1) < 0.5) {
+    return(x - sample(1:5, 1))
+  }
   return(x)
 }
 
+weekendsAndPublicHolidays <- unique(c(
+  which(p$seasonalityData$weekdate %in% c("Saturday", "Sunday")),
+  which(p$seasonalityData$publicHoliday)
+))
+
 # apply removals to original observations to create new patchy observations
 p$observations <- (p$trueValues 
-                        %>% limitObservations(3, 1, 200)
-                        %>% operate_on_values(p$operator1)
-                        %>% operate_on_values(p$operator2)
+                        %>% limitObservations(5, 1:100)
+                        %>% killObservations(0.1, -weekendsAndPublicHolidays)
+                        %>% killObservations(0.6,  weekendsAndPublicHolidays)
+                        %>% operate_on_values(p$reducer)
 )
 
 p$unObservedData <- (data.frame(
